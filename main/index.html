@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>メインページ - Mocchi Casino</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        /* メインページ用の微調整スタイル */
+        .menu-list {
+            list-style: none;
+            width: 100%;
+            margin-top: 20px;
+        }
+        .menu-list li {
+            margin-bottom: 15px;
+        }
+        .logout-btn {
+            margin-top: 25px;
+            border-color: var(--alert-red);
+            color: var(--alert-red);
+        }
+        .logout-btn:hover {
+            background-color: var(--alert-red);
+            color: #fff;
+        }
+        .info-box {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+        .info-box span {
+            color: var(--accent-main);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container" style="max-width: 500px;">
+        <h2>Mocchi Casino Main</h2>
+        
+        <div class="info-box">
+            WELCOME, <span id="display-username">------</span><br>
+            CURRENT BALANCE: <span id="display-money" class="auth-code-display" style="font-size: 2rem; margin: 10px 0; display: block;">--- M</span>
+        </div>
+
+        <h3>MENU</h3>
+        <ul class="menu-list">
+            <li><button onclick="location.href='../games/index.html'">🎰 ゲーム一覧 / GAMES</button></li>
+            <li><button onclick="location.href='../ranking/index.html'">🏆 ランキング / RANKING</button></li>
+            <li><button onclick="location.href='../my-page/index.html'">👤 マイページ / MY PAGE</button></li>
+            <li><button id="bankruptcy-btn" onclick="executeBankruptcy()" style="display: none;">💥 破産申請を行う (20M以下限定)</button></li>
+            <li><button onclick="logout()" class="logout-btn">🚪 ログアウト / LOGOUT</button></li>
+        </ul>
+    </div>
+
+    <script>
+        // 🔴 あなたのRenderのURL（末尾にスラッシュなし）に書き換えてください
+        const BACKEND_URL = "https://mcci-backend-service.onrender.com"; 
+
+        // ページが開かれたら自動的に実行する
+        window.onload = async function() {
+            const username = localStorage.getItem('mcci_username');
+            
+            // ログインしていない場合はログインページへ強制送還
+            if (!username) {
+                alert("ログインが必要です。");
+                window.location.href = "../login/index.html";
+                return;
+            }
+
+            document.getElementById('display-username').innerText = username;
+            
+            // 毎回必ず最新の情報をサーバー（Supabase）に問い合わせる
+            await fetchUserInfo(username);
+        };
+
+        // データベースから最新の所持金を引っ張ってくる関数
+        async function fetchUserInfo(username) {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/user-info?username=${encodeURIComponent(username)}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    // 最新の所持金を表示
+                    document.getElementById('display-money').innerText = result.money + " M";
+                    
+                    // ノートのルール「所持金が20M以下になったら破産可能」
+                    const bankruptcyBtn = document.getElementById('bankruptcy-btn');
+                    if (result.money <= 20) {
+                        bankruptcyBtn.style.display = "block"; // 20M以下なら破産ボタンを表示
+                    } else {
+                        bankruptcyBtn.style.display = "none";
+                    }
+                } else {
+                    alert(result.message);
+                    logout(); // ユーザーが見つからない等の場合はログアウトさせる
+                }
+            } catch (error) {
+                console.error("情報取得エラー:", error);
+                document.getElementById('display-money').innerText = "ERROR";
+            }
+        }
+
+        // 破産処理の実行
+        async function executeBankruptcy() {
+            const username = localStorage.getItem('mcci_username');
+            if (!confirm("本当に破産しますか？所持金が500Mにリセットされます。")) return;
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/bankruptcy`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+                const result = await response.json();
+
+                alert(result.message);
+                if (result.success) {
+                    // 画面の所持金を500Mに更新し、破産ボタンを隠す
+                    document.getElementById('display-money').innerText = result.newMoney + " M";
+                    document.getElementById('bankruptcy-btn').style.display = "none";
+                }
+            } catch (error) {
+                alert("通信エラーが発生しました。");
+            }
+        }
+
+        // ログアウト処理
+        function logout() {
+            localStorage.removeItem('mcci_username');
+            window.location.href = "../login/index.html";
+        }
+    </script>
+</body>
+</html>
