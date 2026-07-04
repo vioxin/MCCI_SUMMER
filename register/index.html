@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新規登録 - Mocchi Casino</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="form-container">
+        <h2>Mocchi Casino Register</h2>
+        
+        <div id="register-form">
+            <form onsubmit="register(event)">
+                <label for="username">ユーザー名 / USERNAME</label>
+                <input type="text" id="username" placeholder="Enter username" required>
+                
+                <label for="password">パスワード / PASSWORD</label>
+                <input type="password" id="password" placeholder="Enter password" required>
+                
+                <button type="submit">登録する</button>
+            </form>
+            <p id="error-msg" style="color: var(--alert-red); margin-top: 15px; text-align: center; font-size: 0.9rem; font-weight: bold;"></p>
+            <div style="text-align: center; margin-top: 20px;">
+                <a href="../login/index.html">既にアカウントをお持ちの方はこちら</a>
+            </div>
+        </div>
+
+        <div id="auth-section" style="display: none;">
+            <h3>Authentication</h3>
+            <p style="font-size: 0.85rem; text-align: center; margin-bottom: 15px; line-height: 1.4;">
+                登録が一時完了しました！<br>
+                Discordの認証チャンネルに、以下のワンタイムパスコードを入力してください。
+            </p>
+            <div id="auth-code" class="auth-code-display"></div>
+            <p style="font-size: 0.8rem; text-align: center; color: var(--accent-sub); margin-bottom: 20px;">
+                ※Botの認証が完了するとログイン可能になります。
+            </p>
+            <div style="text-align: center;">
+                <a href="../login/index.html">▶ ログインページへ進む</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 🔴 あなたのRenderのURL（末尾にスラッシュなし）に書き換えてください
+        const BACKEND_URL = "https://あなたのアプリ名.onrender.com"; 
+
+        async function register(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMsg = document.getElementById('error-msg');
+            errorMsg.innerText = ""; // メッセージの初期化
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    // 成功したら登録フォームを隠して、Discord認証コード画面を出す
+                    document.getElementById('register-form').style.display = 'none';
+                    document.getElementById('auth-section').style.display = 'block';
+                    document.getElementById('auth-code').innerText = result.code;
+                } else {
+                    errorMsg.innerText = result.message;
+                }
+            } catch (error) {
+                errorMsg.innerText = "サーバーとの通信に失敗しました。";
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>
