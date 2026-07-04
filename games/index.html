@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ゲーム一覧 - Mocchi Casino</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            width: 100%;
+            margin-top: 20px;
+        }
+        .game-card {
+            padding: 15px;
+            border: 1px solid var(--accent-sub);
+            background: rgba(0,0,0,0.3);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .game-card:hover:not(.locked) {
+            background: var(--accent-main);
+            color: #000;
+            box-shadow: 0 0 10px var(--accent-main);
+        }
+        .game-card.locked {
+            border-color: #444;
+            color: #666;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .game-card h4 { margin: 0 0 5px 0; font-size: 1.1rem; }
+        .game-card span { font-size: 0.75rem; display: block; }
+    </style>
+</head>
+<body>
+    <div class="form-container" style="max-width: 600px;">
+        <h2>GAMES LIST</h2>
+        
+        <div style="text-align: center; margin-bottom: 20px;">
+            BALANCE: <span id="display-money" style="color: var(--accent-main); font-weight: bold; font-size: 1.3rem;">--- M</span>
+        </div>
+
+        <div class="grid-container">
+            <div class="game-card" onclick="location.href='./cointoss.html'">
+                <h4>🪙 コイントス</h4>
+                <span>COIN TOSS (50%)</span>
+            </div>
+
+            <div class="game-card locked"><h4>🎰 スロット</h4><span>SLOT (PREPARING)</span></div>
+            <div class="game-card locked"><h4>🎡 ルーレット</h4><span>ROULETTE (PREPARING)</span></div>
+            <div class="game-card locked"><h4>🔴 パチンコ</h4><span>PACHINKO (PREPARING)</span></div>
+            <div class="game-card locked"><h4>🔫 ロシアンルーレット</h4><span>RUSSIAN (PREPARING)</span></div>
+            <div class="game-card locked"><h4>🃏 ポーカー</h4><span>POKER (PREPARING)</span></div>
+            <div class="game-card locked"><h4>♠️ ブラックジャック</h4><span>BLACKJACK (PREPARING)</span></div>
+            <div class="game-card locked"><h4>📈 FX</h4><span>FOREX (PREPARING)</span></div>
+            <div class="game-card locked"><h4>🏇 競馬</h4><span>HORSE RACE (PREPARING)</span></div>
+            <div class="game-card locked"><h4>🐧 ペンギンジャック</h4><span>PENGUIN (PREPARING)</span></div>
+        </div>
+
+        <button onclick="location.href='../main/index.html'" style="margin-top: 30px; border-color: #888; color: #888;">◀ メインに戻る / BACK</button>
+    </div>
+
+    <script>
+        const BACKEND_URL = "https://mcci-backend-service.onrender.com";
+
+        window.onload = async function() {
+            const username = localStorage.getItem('mcci_username');
+            if (!username) { window.location.href = "../login/index.html"; return; }
+
+            // ページを開いた瞬間に最新の所持金を取得
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/user-info?username=${encodeURIComponent(username)}`);
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('display-money').innerText = result.money + " M";
+                }
+            } catch (e) { console.error(e); }
+        };
+    </script>
+</body>
+</html>
