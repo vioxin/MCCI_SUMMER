@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン - Mocchi Casino</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="form-container">
+        <h2>Mocchi Casino Login</h2>
+        
+        <form onsubmit="login(event)">
+            <label for="username">ユーザー名 / USERNAME</label>
+            <input type="text" id="username" placeholder="Enter username" required>
+            
+            <label for="password">パスワード / PASSWORD</label>
+            <input type="password" id="password" placeholder="Enter password" required>
+            
+            <button type="submit">ログイン</button>
+        </form>
+        
+        <p id="login-msg" style="margin-top: 15px; text-align: center; font-size: 0.9rem; font-weight: bold;"></p>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="../register/index.html">新しくアカウントを作る（新規登録）</a>
+        </div>
+    </div>
+
+    <script>
+        // 🔴 あなたのRenderのURL（末尾にスラッシュなし）に書き換えてください
+        const BACKEND_URL = "https://あなたのアプリ名.onrender.com"; 
+
+        async function login(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const msgObj = document.getElementById('login-msg');
+            msgObj.innerText = ""; // メッセージの初期化
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    msgObj.style.color = "var(--accent-main)"; // 成功時はネオンブルー（または緑）
+                    msgObj.innerText = "SUCCESS: ログイン成功。移動します...";
+                    
+                    // ノートの仕様通り、ログイン中のユーザー名をブラウザに保存
+                    localStorage.setItem('mcci_username', username);
+                    
+                    // 1.5秒後にカジノのメインページへジャンプ
+                    setTimeout(() => {
+                        window.location.href = "../main/index.html";
+                    }, 1500);
+                } else {
+                    msgObj.style.color = "var(--alert-red)";
+                    msgObj.innerText = result.message;
+                }
+            } catch (error) {
+                msgObj.style.color = "var(--alert-red)";
+                msgObj.innerText = "ERROR: サーバー通信エラー";
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>
