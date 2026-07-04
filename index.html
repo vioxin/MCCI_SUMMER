@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mocchi Casino - ホーム</title>
+    <link rel="stylesheet" href="./css/style.css">
+    <style>
+        .intro-text {
+            margin: 20px 0;
+            line-height: 1.8;
+            text-align: center;
+            font-size: 0.95rem;
+        }
+        .intro-text p {
+            margin-bottom: 10px;
+        }
+        .rules-box {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px dashed var(--accent-sub);
+            background-color: rgba(0, 0, 0, 0.4);
+            font-size: 0.85rem;
+        }
+        .rules-box h3 {
+            font-size: 1rem;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--accent-sub);
+            padding-bottom: 5px;
+        }
+        .rules-box ul {
+            text-align: left;
+            padding-left: 20px;
+            list-style-type: square;
+            color: var(--text-main);
+        }
+        .rules-box li {
+            margin-bottom: 8px;
+        }
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 35px;
+        }
+        /* 新規登録ボタンの色を少し変えて目立たせる */
+        .register-btn {
+            border-color: #fff;
+            color: #fff;
+        }
+        .register-btn:hover {
+            background-color: #fff;
+            color: var(--bg-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container" style="max-width: 550px;">
+        <h2>Mocchi Casino</h2>
+
+        <div class="intro-text">
+            <p>ようこそ、電脳空間の地下カジノへ。</p>
+            <p>ここは運と度胸が全てを決める場所。<br>己の直感を信じ、富を築き上げろ。</p>
+        </div>
+
+        <div class="rules-box">
+            <h3>◆ EVENT INFORMATION ◆</h3>
+            <ul>
+                <li><strong>開催期間:</strong> 7月20日 〜 8月31日</li>
+                <li><strong>ランキング表示:</strong> 8月23日まで</li>
+                <li><strong>初期資金:</strong> 1000 M（もっち）</li>
+                <li><strong>特別救済:</strong> 所持金20 M以下で破産申請可能（500 Mから再開 / 破産カウントあり）</li>
+            </ul>
+        </div>
+
+        <div class="button-group">
+            <button onclick="location.href='./login/index.html'">ログイン / LOGIN</button>
+            <button onclick="location.href='./register/index.html'" class="register-btn">新規登録 / REGISTER</button>
+        </div>
+    </div>
+</body>
+</html>
