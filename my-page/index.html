@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>マイページ - Mocchi Casino</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        /* マイページ専用のサイバーパンク・プロフィールスタイル */
+        .profile-card {
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        /* 🔵 Discordの丸型アバターアイコン */
+        .avatar-wrapper {
+            position: relative;
+            width: 110px;
+            height: 110px;
+            margin: 0 auto 15px auto;
+        }
+        .discord-avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%; /* 綺麗な真ん丸にする */
+            border: 3px solid var(--accent-main);
+            box-shadow: 0 0 15px var(--accent-main);
+            object-fit: cover;
+            background-color: #2c2f33; /* Discordの背景色風 */
+        }
+        /* 🟢 Discord連携済みバッジ */
+        .verified-badge {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: #23a55a; /* Discordのオンライン緑 */
+            color: white;
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-weight: bold;
+            border: 2px solid var(--bg-color);
+            box-shadow: 0 0 5px #23a55a;
+        }
+        .profile-username {
+            font-size: 1.6rem;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+        .discord-tag {
+            font-size: 0.8rem;
+            color: #5865F2; /* Discordパープル */
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        /* 📊 ステータス表示板 */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .status-box {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--accent-sub);
+            padding: 15px;
+            text-align: center;
+        }
+        .status-box label {
+            font-size: 0.75rem;
+            color: var(--accent-sub);
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            display: block;
+        }
+        .status-box .value {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--text-main);
+        }
+        .status-box .value.money-highlight {
+            color: var(--accent-main);
+            font-size: 1.5rem;
+        }
+        .status-box .value.alert-highlight {
+            color: var(--alert-red);
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container" style="max-width: 480px;">
+        <h2>USER PROFILE</h2>
+
+        <div class="profile-card">
+            <div class="avatar-wrapper">
+                <img id="user-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Discord Avatar" class="discord-avatar">
+                <span class="verified-badge">✓ DISCORD LINKED</span>
+            </div>
+            <div id="user-name" class="profile-username">------</div>
+            <div class="discord-tag">CONNECTED ACCOUNT</div>
+        </div>
+
+        <div class="status-grid">
+            <div class="status-box">
+                <label>CURRENT BALANCE</label>
+                <div id="user-money" class="value money-highlight">--- M</div>
+            </div>
+            <div class="status-box">
+                <label>BANKRUPTCY COUNT</label>
+                <div id="user-bankruptcy" class="value alert-highlight">-- 回</div>
+            </div>
+        </div>
+
+        <button onclick="location.href='../main/index.html'" style="border-color: #888; color: #888;">◀ メインページに戻る / BACK</button>
+    </div>
+
+    <script>
+        const BACKEND_URL = "https://mcci-backend-service.onrender.com";
+
+        window.onload = async function() {
+            const username = localStorage.getItem('mcci_username');
+            
+            // ログインチェック
+            if (!username) {
+                alert("ログインが必要です。");
+                window.location.href = "../login/index.html";
+                return;
+            }
+
+            // 画面を開いた瞬間に、必ずSupabaseから「最新のデータ」を直接取得する
+            await loadUserProfile(username);
+        };
+
+        async function loadUserProfile(username) {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/user-info?username=${encodeURIComponent(username)}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    // ① データベースにある本物のDiscordアバターURLを反映
+                    document.getElementById('user-avatar').src = result.avatar_url;
+                    
+                    // ② ユーザー名、所持金、修正した破産カウントを正確に同期
+                    document.getElementById('user-name').innerText = username;
+                    document.getElementById('user-money').innerText = result.money + " M";
+                    document.getElementById('user-bankruptcy').innerText = result.bankruptcy_count + " 回";
+                } else {
+                    alert(result.message);
+                    // エラーがあれば安全のためログアウト
+                    localStorage.removeItem('mcci_username');
+                    window.location.href = "../login/index.html";
+                }
+            } catch (error) {
+                console.error("プロフィール取得エラー:", error);
+                alert("通信エラーが発生しました。");
+            }
+        }
+    </script>
+</body>
+</html>
