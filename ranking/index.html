@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ランキング - Mocchi Casino</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .ranking-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .ranking-row {
+            display: flex;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #333;
+            padding: 10px 15px;
+            transition: transform 0.2s;
+        }
+        
+        .ranking-row:hover {
+            transform: translateX(5px);
+            background: rgba(222, 255, 154, 0.05);
+        }
+
+        /* 順位のスタイル */
+        .rank-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            width: 40px;
+            color: #888;
+            text-align: center;
+        }
+
+        /* アイコン */
+        .rank-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin: 0 15px;
+            object-fit: cover;
+            border: 2px solid #555;
+        }
+
+        /* ユーザー情報 */
+        .rank-info {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .rank-name {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--text-main);
+        }
+        .rank-bankrupt {
+            font-size: 0.7rem;
+            color: var(--alert-red);
+        }
+
+        /* 所持金 */
+        .rank-money {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--accent-main);
+            text-align: right;
+        }
+
+        /* 🏆 トップ3の特別装飾 */
+        .rank-1 { border-color: #FFD700; background: rgba(255, 215, 0, 0.1); }
+        .rank-1 .rank-number { color: #FFD700; }
+        .rank-1 .rank-avatar { border-color: #FFD700; box-shadow: 0 0 10px #FFD700; }
+
+        .rank-2 { border-color: #C0C0C0; background: rgba(192, 192, 192, 0.1); }
+        .rank-2 .rank-number { color: #C0C0C0; }
+        .rank-2 .rank-avatar { border-color: #C0C0C0; }
+
+        .rank-3 { border-color: #CD7F32; background: rgba(205, 127, 50, 0.1); }
+        .rank-3 .rank-number { color: #CD7F32; }
+        .rank-3 .rank-avatar { border-color: #CD7F32; }
+    </style>
+</head>
+<body>
+    <div class="form-container" style="max-width: 700px;">
+        <h2>🏆 GLOBAL RANKING</h2>
+        <div style="text-align: center; font-size: 0.85rem; color: var(--accent-sub); margin-bottom: 20px;">
+            ※ランキングはリアルタイムで更新されます
+        </div>
+
+        <div id="ranking-list" class="ranking-container">
+            <div style="text-align: center; padding: 30px; color: #888;">
+                データを読み込み中...
+            </div>
+        </div>
+
+        <button onclick="location.href='../main/index.html'" style="margin-top: 30px; border-color: #888; color: #888;">◀ メインページに戻る</button>
+    </div>
+
+    <script>
+        const BACKEND_URL = "https://mcci-backend-service.onrender.com";
+
+        window.onload = async function() {
+            // ログインチェック（任意ですが、一応いれておきます）
+            const username = localStorage.getItem('mcci_username');
+            if (!username) { window.location.href = "../login/index.html"; return; }
+
+            await fetchRanking();
+        };
+
+        async function fetchRanking() {
+            const listContainer = document.getElementById('ranking-list');
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/ranking`);
+                const result = await response.json();
+
+                if (result.success) {
+                    listContainer.innerHTML = ""; // ロード中の文字を消す
+
+                    result.ranking.forEach((user, index) => {
+                        const rank = index + 1;
+                        let rankClass = "";
+                        
+                        // 1〜3位に特別クラスを付与
+                        if (rank === 1) rankClass = "rank-1";
+                        if (rank === 2) rankClass = "rank-2";
+                        if (rank === 3) rankClass = "rank-3";
+
+                        // 破産回数の表示（0回なら表示しない）
+                        const bankruptBadge = user.bankruptcy_count > 0 
+                            ? `<span class="rank-bankrupt">💥 破産 ${user.bankruptcy_count}回</span>` 
+                            : "";
+
+                        // 行のHTMLを生成
+                        const rowHtml = `
+                            <div class="ranking-row ${rankClass}">
+                                <div class="rank-number">${rank}</div>
+                                <img src="${user.avatar_url}" class="rank-avatar" alt="icon">
+                                <div class="rank-info">
+                                    <div class="rank-name">${user.username}</div>
+                                    ${bankruptBadge}
+                                </div>
+                                <div class="rank-money">${user.money} M</div>
+                            </div>
+                        `;
+                        
+                        listContainer.innerHTML += rowHtml;
+                    });
+
+                    // もし誰もいなかった場合
+                    if (result.ranking.length === 0) {
+                        listContainer.innerHTML = "<div style='text-align:center; color:#888;'>まだプレイヤーがいません。</div>";
+                    }
+
+                } else {
+                    listContainer.innerHTML = `<div style="color:var(--alert-red); text-align:center;">${result.message}</div>`;
+                }
+            } catch (error) {
+                listContainer.innerHTML = `<div style="color:var(--alert-red); text-align:center;">通信エラーが発生しました。</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
