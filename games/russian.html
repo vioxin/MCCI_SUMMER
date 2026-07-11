@@ -3,83 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ロシアンルーレット - Mocchi Casino</title>
+    <title>ブラックジャック - Mocchi Casino</title>
     <link rel="stylesheet" href="../css/style.css">
     <style>
-        .cylinder-wrapper {
-            width: 140px;
-            height: 140px;
-            margin: 20px auto;
-            border-radius: 50%;
-            border: 4px solid var(--accent-main);
-            box-shadow: 0 0 20px var(--accent-main);
+        .table-area { margin: 15px 0; }
+        .hand-block { margin-bottom: 15px; }
+        .hand-title {
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--accent-sub);
+            font-size: 0.9rem;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .card-row { display: flex; gap: 6px; flex-wrap: wrap; min-height: 70px; }
+        .card {
+            width: 46px; height: 64px;
+            background: #fff;
+            color: #111;
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #111;
-            font-size: 3rem;
-        }
-        .cylinder-wrapper.spinning { animation: cyl-spin 0.3s linear infinite; }
-        @keyframes cyl-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-        .bullet-row { display: flex; gap: 8px; justify-content: center; margin: 15px 0; }
-        .bullet-btn {
-            width: 46px; height: 46px;
-            border-radius: 50%;
-            border: 1px solid var(--accent-sub);
-            background: rgba(0,0,0,0.5);
-            color: var(--text-main);
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 1rem;
-            cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .bullet-btn.selected {
-            background: var(--alert-red);
-            border-color: var(--alert-red);
-            color: #000;
-            box-shadow: 0 0 10px var(--alert-red);
             font-weight: bold;
+            font-size: 1rem;
+            box-shadow: 0 0 6px rgba(255,255,255,0.3);
         }
-        .mult-note { text-align: center; font-size: 0.8rem; color: var(--accent-sub); min-height: 18px; margin-bottom: 10px; }
+        .card.red-suit { color: #c0392b; }
+        .card.hidden {
+            background: repeating-linear-gradient(45deg, var(--accent-sub), var(--accent-sub) 4px, #111 4px, #111 8px);
+        }
+
+        .action-row { display: flex; gap: 10px; margin-top: 10px; }
+        .action-row button { flex: 1; }
 
         .result-display {
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             font-weight: bold;
             text-align: center;
             margin: 15px 0;
-            min-height: 50px;
+            min-height: 40px;
             line-height: 1.4;
         }
+        #bet-phase, #play-phase { display: block; }
+        #play-phase.hidden, #bet-phase.hidden { display: none; }
     </style>
 </head>
 <body>
-    <div class="form-container" style="max-width: 480px;">
-        <h2>🔫 ロシアンルーレット</h2>
+    <div class="form-container" style="max-width: 520px;">
+        <h2>♠️ BLACKJACK</h2>
 
         <div style="text-align: center; margin-bottom: 10px;">
             所持金: <span id="display-money" style="color: var(--accent-main); font-weight: bold; font-size: 1.4rem;">--- M</span>
         </div>
-        <div style="text-align: center; font-size: 0.85rem; color: var(--accent-sub); margin-bottom: 10px;">
-            現在の賭け金制限：<span id="bet-range">下限 ---M / 上限 ---M</span>
+
+        <div id="bet-phase">
+            <label for="bet-input">賭け金 / BET AMOUNT</label>
+            <input type="number" id="bet-input" required>
+            <button type="button" id="deal-btn" onclick="startGame()" style="margin-top: 10px;">配る / DEAL</button>
         </div>
 
-        <div class="cylinder-wrapper" id="cylinder">🔫</div>
+        <div id="play-phase" class="hidden">
+            <div class="table-area">
+                <div class="hand-block">
+                    <div class="hand-title"><span>DEALER</span><span id="dealer-total"></span></div>
+                    <div class="card-row" id="dealer-cards"></div>
+                </div>
+                <div class="hand-block">
+                    <div class="hand-title"><span>YOU</span><span id="player-total"></span></div>
+                    <div class="card-row" id="player-cards"></div>
+                </div>
+            </div>
 
-        <label for="bet-input">賭け金 / BET AMOUNT</label>
-        <input type="number" id="bet-input" min="1" placeholder="金額を入力" required>
-
-        <label>弾を何発込めるか / BULLETS (多いほどハイリスク・ハイリターン)</label>
-        <div class="bullet-row">
-            <button type="button" class="bullet-btn" data-b="1" onclick="selectBullets(1)">1</button>
-            <button type="button" class="bullet-btn" data-b="2" onclick="selectBullets(2)">2</button>
-            <button type="button" class="bullet-btn" data-b="3" onclick="selectBullets(3)">3</button>
-            <button type="button" class="bullet-btn" data-b="4" onclick="selectBullets(4)">4</button>
-            <button type="button" class="bullet-btn" data-b="5" onclick="selectBullets(5)">5</button>
+            <div class="action-row">
+                <button type="button" id="hit-btn" onclick="hit()">HIT / もう1枚</button>
+                <button type="button" id="stand-btn" onclick="stand()">STAND / 勝負</button>
+            </div>
         </div>
-        <div class="mult-note" id="mult-note"></div>
-
-        <button type="button" id="play-btn" onclick="playRussian()" style="margin-top: 10px;">引き金を引く！ / PULL TRIGGER</button>
 
         <div id="result-text" class="result-display"></div>
 
@@ -88,24 +88,14 @@
 
     <script>
         const BACKEND_URL = "https://mcci-backend-service.onrender.com";
-        const MULT_TABLE = { 1: 1.2, 2: 1.5, 3: 2, 4: 3, 5: 6 };
         let currentMoney = 0;
-        let selectedBullets = null;
+        let currentBet = 0;
 
         window.onload = async function() {
             const username = localStorage.getItem('mcci_username');
             if (!username) { window.location.href = "../login/index.html"; return; }
             await updateStatus();
         };
-
-        function selectBullets(n) {
-            selectedBullets = n;
-            document.querySelectorAll('.bullet-btn').forEach(btn => {
-                btn.classList.toggle('selected', parseInt(btn.dataset.b) === n);
-            });
-            const shotChance = Math.round((n / 6) * 100);
-            document.getElementById('mult-note').innerText = `撃たれる確率: 6分の${n}(約${shotChance}%) / 生存時配当: ${MULT_TABLE[n]}倍`;
-        }
 
         async function updateStatus() {
             const username = localStorage.getItem('mcci_username');
@@ -116,76 +106,170 @@
                     currentMoney = result.money;
                     document.getElementById('display-money').innerText = currentMoney + " M";
 
-                    const minBet = Math.max(1, Math.floor(currentMoney * 0.05));
-                    const maxBet = Math.max(1, Math.floor(currentMoney * 0.30));
-                    document.getElementById('bet-range').innerText = `下限 ${minBet}M 〜 上限 ${maxBet}M`;
-
+                    // 【変更点】所持金の更新と同時に賭け金の上限(30%)と下限(5%)を計算して設定
+                    const maxBet = Math.floor(currentMoney * 0.3);
+                    const minBet = Math.max(1, Math.floor(currentMoney * 0.05)); // 5%が1未満にならないよう調整
+                    
                     const betInput = document.getElementById('bet-input');
-                    betInput.min = minBet;
                     betInput.max = maxBet;
+                    betInput.min = minBet;
+                    betInput.placeholder = `${minBet}M 〜 ${maxBet}M (所持金の5〜30%)`;
                 }
             } catch (e) { console.error(e); }
         }
 
-        async function playRussian() {
+        function cardHTML(card, hiddenFlag) {
+            if (hiddenFlag) return `<div class="card hidden"></div>`;
+            const isRed = (card.suit === '♥' || card.suit === '♦');
+            return `<div class="card ${isRed ? 'red-suit' : ''}">${card.rank}${card.suit}</div>`;
+        }
+
+        function renderCards(elId, hand) {
+            document.getElementById(elId).innerHTML = hand.map(c => cardHTML(c, false)).join('');
+        }
+
+        function togglePhase(playing) {
+            document.getElementById('bet-phase').classList.toggle('hidden', playing);
+            document.getElementById('play-phase').classList.toggle('hidden', !playing);
+        }
+
+        async function startGame() {
             const username = localStorage.getItem('mcci_username');
             const betInput = document.getElementById('bet-input');
             const bet = parseInt(betInput.value);
             const resultText = document.getElementById('result-text');
-            const playBtn = document.getElementById('play-btn');
-            const cylinder = document.getElementById('cylinder');
+            const dealBtn = document.getElementById('deal-btn');
 
-            if (isNaN(bet)) { alert("賭け金を数値で入力してください。"); return; }
-            if (!selectedBullets) { alert("弾数を選択してください。"); return; }
-
+            // 【変更点】上限・下限の判定ロジックを追加
+            const maxBet = Math.floor(currentMoney * 0.3);
             const minBet = Math.max(1, Math.floor(currentMoney * 0.05));
-            const maxBet = Math.max(1, Math.floor(currentMoney * 0.30));
-            if (bet < minBet || bet > maxBet) {
-                alert(`賭け金は ${minBet}M から ${maxBet}M の間で指定してください。`);
-                return;
+
+            if (isNaN(bet) || bet < minBet) { 
+                alert(`賭け金は下限の ${minBet}M 以上で入力してください。`); 
+                return; 
+            }
+            if (bet > maxBet) { 
+                alert(`賭け金の上限は所持金の30% ( ${maxBet}M ) です。`); 
+                return; 
             }
 
-            resultText.innerText = "弾倉を回転させています... 🔄";
-            resultText.style.color = "var(--text-main)";
-            playBtn.disabled = true;
-            cylinder.classList.add('spinning');
-            document.getElementById('display-money').innerText = (currentMoney - bet) + " M";
+            dealBtn.disabled = true;
+            resultText.innerText = "";
 
             try {
-                const response = await fetch(`${BACKEND_URL}/api/games/russian`, {
+                const response = await fetch(`${BACKEND_URL}/api/games/blackjack/start`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, bet, bullets: selectedBullets })
+                    body: JSON.stringify({ username, bet })
                 });
                 const result = await response.json();
+                dealBtn.disabled = false;
 
-                setTimeout(async () => {
-                    cylinder.classList.remove('spinning');
+                if (!result.success) { alert(result.message); await updateStatus(); return; }
 
-                    if (result.success) {
-                        cylinder.innerText = result.shot ? '💥' : '😮\u200d💨';
-                        resultText.innerText = result.message;
-                        resultText.style.color = result.shot ? "var(--alert-red)" : "var(--accent-main)";
+                currentBet = bet;
+                currentMoney = result.newMoney;
+                document.getElementById('display-money').innerText = currentMoney + " M";
 
-                        await updateStatus();
-                        betInput.value = "";
-                    } else {
-                        alert(result.message);
-                        resultText.innerText = "";
-                        cylinder.innerText = "🔫";
-                        await updateStatus();
-                    }
-                    playBtn.disabled = false;
-                }, 2000);
+                if (result.finished) {
+                    // 初手ブラックジャック等、その場で決着
+                    renderCards('player-cards', result.playerHand);
+                    renderCards('dealer-cards', result.dealerHand);
+                    document.getElementById('player-total').innerText = result.playerTotal;
+                    document.getElementById('dealer-total').innerText = result.dealerTotal;
+                    togglePhase(true);
+                    document.getElementById('hit-btn').style.display = 'none';
+                    document.getElementById('stand-btn').style.display = 'none';
+                    resultText.innerText = result.message;
+                    resultText.style.color = result.message.includes('勝利') || result.message.includes('ブラックジャック！') ? "var(--accent-main)" : "var(--text-main)";
+                    setTimeout(resetToBetPhase, 3000);
+                    return;
+                }
 
-            } catch (error) {
+                togglePhase(true);
+                document.getElementById('hit-btn').style.display = 'block';
+                document.getElementById('stand-btn').style.display = 'block';
+                renderCards('player-cards', result.playerHand);
+                document.getElementById('dealer-cards').innerHTML = cardHTML(result.dealerUpCard, false) + cardHTML(null, true);
+                document.getElementById('player-total').innerText = result.playerTotal;
+                document.getElementById('dealer-total').innerText = '?';
+
+            } catch (e) {
                 alert("通信エラーが発生しました。");
-                resultText.innerText = "";
-                cylinder.classList.remove('spinning');
-                cylinder.innerText = "🔫";
-                playBtn.disabled = false;
-                await updateStatus();
+                dealBtn.disabled = false;
             }
+        }
+
+        async function hit() {
+            const username = localStorage.getItem('mcci_username');
+            const resultText = document.getElementById('result-text');
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/games/blackjack/hit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+                const result = await response.json();
+                if (!result.success) { alert(result.message); return; }
+
+                renderCards('player-cards', result.playerHand);
+                document.getElementById('player-total').innerText = result.playerTotal;
+
+                if (result.finished) {
+                    renderCards('dealer-cards', result.dealerHand);
+                    document.getElementById('dealer-total').innerText = result.dealerTotal;
+                    document.getElementById('hit-btn').style.display = 'none';
+                    document.getElementById('stand-btn').style.display = 'none';
+                    resultText.innerText = result.message;
+                    resultText.style.color = "var(--alert-red)";
+                    await updateStatus();
+                    setTimeout(resetToBetPhase, 3000);
+                }
+            } catch (e) { alert("通信エラーが発生しました。"); }
+        }
+
+        async function stand() {
+            const username = localStorage.getItem('mcci_username');
+            const resultText = document.getElementById('result-text');
+            document.getElementById('hit-btn').disabled = true;
+            document.getElementById('stand-btn').disabled = true;
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/games/blackjack/stand`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+                const result = await response.json();
+                document.getElementById('hit-btn').disabled = false;
+                document.getElementById('stand-btn').disabled = false;
+
+                if (!result.success) { alert(result.message); return; }
+
+                renderCards('dealer-cards', result.dealerHand);
+                document.getElementById('dealer-total').innerText = result.dealerTotal;
+                document.getElementById('player-total').innerText = result.playerTotal;
+                document.getElementById('hit-btn').style.display = 'none';
+                document.getElementById('stand-btn').style.display = 'none';
+
+                resultText.innerText = result.message;
+                resultText.style.color = result.result === 'win' ? "var(--accent-main)" : (result.result === 'draw' ? "var(--text-main)" : "var(--alert-red)");
+
+                await updateStatus();
+                setTimeout(resetToBetPhase, 3000);
+
+            } catch (e) {
+                alert("通信エラーが発生しました。");
+                document.getElementById('hit-btn').disabled = false;
+                document.getElementById('stand-btn').disabled = false;
+            }
+        }
+
+        function resetToBetPhase() {
+            togglePhase(false);
+            document.getElementById('bet-input').value = "";
+            document.getElementById('result-text').innerText = "";
         }
     </script>
 </body>
