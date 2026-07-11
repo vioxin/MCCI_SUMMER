@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>チンチロ - Mocchi Casino</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .vs-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0 10px;
+        }
+        .vs-side { flex: 1; text-align: center; }
+        .vs-side h4 { color: var(--accent-sub); font-size: 0.9rem; margin-bottom: 8px; }
+        .vs-mark { font-family: 'Share Tech Mono', monospace; color: var(--alert-red); font-size: 1.3rem; padding: 0 10px; }
+
+        .dice-row {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            min-height: 46px;
+        }
+        .die {
+            width: 40px;
+            height: 40px;
+            background: #111;
+            border: 2px solid var(--accent-main);
+            box-shadow: 0 0 8px var(--accent-main);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--accent-main);
+        }
+        .die.rolling { animation: shake 0.15s linear infinite; color: #888; border-color: #888; box-shadow: none; }
+        @keyframes shake {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-3px) rotate(8deg); }
+            100% { transform: translateY(0); }
+        }
+
+        .hand-label {
+            text-align: center;
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            min-height: 20px;
+        }
+        .roll-log {
+            font-size: 0.7rem;
+            color: #666;
+            text-align: center;
+            min-height: 14px;
+        }
+
+        .result-display {
+            font-size: 1.3rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0;
+            min-height: 50px;
+            line-height: 1.4;
+            white-space: pre-line;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container" style="max-width: 520px;">
+        <h2>🎲 チンチロリン</h2>
+
+        <div style="text-align: center; margin-bottom: 10px;">
+            所持金: <span id="display-money" style="color: var(--accent-main); font-weight: bold; font-size: 1.4rem;">--- M</span>
+        </div>
+
+        <div class="vs-row">
+            <div class="vs-side">
+                <h4>YOU / プレイヤー</h4>
+                <div class="dice-row" id="player-dice">
+                    <div class="die">?</div><div class="die">?</div><div class="die">?</div>
+                </div>
+                <div class="hand-label" id="player-hand"></div>
+                <div class="roll-log" id="player-log"></div>
+            </div>
+            <div class="vs-mark">VS</div>
+            <div class="vs-side">
+                <h4>CPU</h4>
+                <div class="dice-row" id="cpu-dice">
+                    <div class="die">?</div><div class="die">?</div><div class="die">?</div>
+                </div>
+                <div class="hand-label" id="cpu-hand"></div>
+                <div class="roll-log" id="cpu-log"></div>
+            </div>
+        </div>
+
+        <div style="text-align: center; font-size: 0.85rem; color: var(--accent-sub); margin-bottom: 10px;">
+            賭け金は所持金の範囲内で自由に設定可能
+        </div>
+
+        <label for="bet-input">賭け金 / BET AMOUNT</label>
+        <input type="number" id="bet-input" min="1" placeholder="金額を入力" required>
+
+        <button type="button" id="play-btn" onclick="playChinchiro()" style="margin-top: 10px;">サイコロを振る！ / ROLL</button>
+
+        <div id="result-text" class="result-display"></div>
+
+        <button onclick="location.href='./index.html'" style="margin-top: 10px; border-color: #888; color: #888; padding: 8px;">◀ ゲーム一覧に戻る</button>
+    </div>
+
+    <script>
+        const BACKEND_URL = "https://mcci-backend-service.onrender.com";
+        let currentMoney = 0;
+
+        window.onload = async function() {
+            const username = localStorage.getItem('mcci_username');
+            if (!username) { window.location.href = "../login/index.html"; return; }
+            await updateStatus();
+        };
+
+        async function updateStatus() {
+            const username = localStorage.getItem('mcci_username');
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/user-info?username=${encodeURIComponent(username)}`);
+                const result = await response.json();
+                if (result.success) {
+                    currentMoney = result.money;
+                    document.getElementById('display-money').innerText = currentMoney + " M";
+                    document.getElementById('bet-input').max = currentMoney;
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function resetDice() {
+            ['player-dice', 'cpu-dice'].forEach(id => {
+                document.getElementById(id).innerHTML = '<div class="die rolling">?</div><div class="die rolling">?</div><div class="die rolling">?</div>';
+            });
+            document.getElementById('player-hand').innerText = '';
+            document.getElementById('cpu-hand').innerText = '';
+            document.getElementById('player-log').innerText = '';
+            document.getElementById('cpu-log').innerText = '';
+        }
+
+        function renderTurn(diceRowId, handLabelId, logId, turn) {
+            const dice = turn.finalHand ? turn.rolls[turn.rolls.length - 1].dice : [0, 0, 0];
+            document.getElementById(diceRowId).innerHTML = dice.map(d => `<div class="die">${d}</div>`).join('');
+            document.getElementById(handLabelId).innerText = turn.finalHand.name;
+            if (turn.rolls.length > 1) {
+                document.getElementById(logId).innerText = `${turn.rolls.length}投目で決定`;
+            } else {
+                document.getElementById(logId).innerText = '1投目で決定';
+            }
+        }
+
+        async function playChinchiro() {
+            const username = localStorage.getItem('mcci_username');
+            const betInput = document.getElementById('bet-input');
+            const bet = parseInt(betInput.value);
+            const resultText = document.getElementById('result-text');
+            const playBtn = document.getElementById('play-btn');
+
+            if (isNaN(bet) || bet < 1) { alert("賭け金を数値で入力してください。"); return; }
+            if (bet > currentMoney) { alert(`賭け金は所持金( ${currentMoney}M )以下にしてください。`); return; }
+
+            resultText.innerText = "サイコロを振っています... 🎲";
+            resultText.style.color = "var(--text-main)";
+            playBtn.disabled = true;
+            resetDice();
+            document.getElementById('display-money').innerText = (currentMoney - bet) + " M";
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/games/chinchiro`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, bet })
+                });
+                const result = await response.json();
+
+                setTimeout(async () => {
+                    if (result.success) {
+                        renderTurn('player-dice', 'player-hand', 'player-log', result.playerTurn);
+                        renderTurn('cpu-dice', 'cpu-hand', 'cpu-log', result.cpuTurn);
+
+                        resultText.innerText = result.message;
+                        resultText.style.color = result.result === 'win' ? "var(--accent-main)" : (result.result === 'draw' ? "var(--text-main)" : "var(--alert-red)");
+
+                        await updateStatus();
+                        betInput.value = "";
+                    } else {
+                        alert(result.message);
+                        resultText.innerText = "";
+                        resetDice();
+                        await updateStatus();
+                    }
+                    playBtn.disabled = false;
+                }, 1800);
+
+            } catch (error) {
+                alert("通信エラーが発生しました。");
+                resultText.innerText = "";
+                resetDice();
+                playBtn.disabled = false;
+                await updateStatus();
+            }
+        }
+    </script>
+</body>
+</html>
