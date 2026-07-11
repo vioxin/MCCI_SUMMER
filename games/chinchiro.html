@@ -98,11 +98,11 @@
         </div>
 
         <div style="text-align: center; font-size: 0.85rem; color: var(--accent-sub); margin-bottom: 10px;">
-            賭け金は所持金の範囲内で自由に設定可能
+            賭け金は所持金の5%〜30%の範囲で設定可能
         </div>
 
         <label for="bet-input">賭け金 / BET AMOUNT</label>
-        <input type="number" id="bet-input" min="1" placeholder="金額を入力" required>
+        <input type="number" id="bet-input" required>
 
         <button type="button" id="play-btn" onclick="playChinchiro()" style="margin-top: 10px;">サイコロを振る！ / ROLL</button>
 
@@ -129,7 +129,15 @@
                 if (result.success) {
                     currentMoney = result.money;
                     document.getElementById('display-money').innerText = currentMoney + " M";
-                    document.getElementById('bet-input').max = currentMoney;
+
+                    // 【変更点】所持金の更新と同時に賭け金の上限(30%)と下限(5%)を計算
+                    const maxBet = Math.floor(currentMoney * 0.3);
+                    const minBet = Math.max(1, Math.floor(currentMoney * 0.05));
+                    
+                    const betInput = document.getElementById('bet-input');
+                    betInput.max = maxBet;
+                    betInput.min = minBet;
+                    betInput.placeholder = `${minBet}M 〜 ${maxBet}M (所持金の5〜30%)`;
                 }
             } catch (e) { console.error(e); }
         }
@@ -162,8 +170,18 @@
             const resultText = document.getElementById('result-text');
             const playBtn = document.getElementById('play-btn');
 
-            if (isNaN(bet) || bet < 1) { alert("賭け金を数値で入力してください。"); return; }
-            if (bet > currentMoney) { alert(`賭け金は所持金( ${currentMoney}M )以下にしてください。`); return; }
+            // 【変更点】上限・下限の判定ロジックを追加
+            const maxBet = Math.floor(currentMoney * 0.3);
+            const minBet = Math.max(1, Math.floor(currentMoney * 0.05));
+
+            if (isNaN(bet) || bet < minBet) { 
+                alert(`賭け金は下限の ${minBet}M 以上で入力してください。`); 
+                return; 
+            }
+            if (bet > maxBet) { 
+                alert(`賭け金の上限は所持金の30% ( ${maxBet}M ) です。`); 
+                return; 
+            }
 
             resultText.innerText = "サイコロを振っています... 🎲";
             resultText.style.color = "var(--text-main)";
