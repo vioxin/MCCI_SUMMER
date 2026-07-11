@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ルーレット - Mocchi Casino</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .wheel-wrapper {
+            width: 160px;
+            height: 160px;
+            margin: 20px auto;
+            border-radius: 50%;
+            border: 4px solid var(--accent-main);
+            box-shadow: 0 0 20px var(--accent-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #111;
+            position: relative;
+        }
+        .wheel-wrapper.spinning {
+            animation: wheel-spin 0.4s linear infinite;
+        }
+        @keyframes wheel-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        #wheel-number {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 2.6rem;
+            font-weight: bold;
+        }
+        .num-red { color: var(--alert-red); text-shadow: 0 0 10px var(--alert-red); }
+        .num-black { color: #ccc; text-shadow: 0 0 10px #888; }
+        .num-green { color: #4dff88; text-shadow: 0 0 10px #4dff88; }
+
+        .tab-row { display: flex; gap: 8px; margin-bottom: 15px; }
+        .tab-btn {
+            flex: 1;
+            padding: 8px;
+            font-size: 0.85rem;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid var(--accent-sub);
+            color: var(--text-main);
+            cursor: pointer;
+        }
+        .tab-btn.selected { background: var(--accent-main); color: #000; font-weight: bold; }
+
+        .choice-group { display: flex; gap: 15px; margin: 15px 0; }
+        .choice-btn {
+            flex: 1;
+            padding: 15px;
+            font-size: 1rem;
+            border: 1px solid var(--accent-sub);
+            background: rgba(0,0,0,0.5);
+            color: var(--text-main);
+            cursor: pointer;
+        }
+        .choice-btn.red-btn { border-color: var(--alert-red); color: var(--alert-red); }
+        .choice-btn.black-btn { border-color: #999; color: #ccc; }
+        .choice-btn.selected.red-btn { background: var(--alert-red); color: #000; box-shadow: 0 0 10px var(--alert-red); }
+        .choice-btn.selected.black-btn { background: #ccc; color: #000; box-shadow: 0 0 10px #ccc; }
+
+        #number-picker { display: none; }
+        #number-picker.active { display: block; }
+
+        .result-display {
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0;
+            min-height: 50px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container" style="max-width: 500px;">
+        <h2>🎡 ROULETTE</h2>
+
+        <div style="text-align: center; margin-bottom: 10px;">
+            所持金: <span id="display-money" style="color: var(--accent-main); font-weight: bold; font-size: 1.4rem;">--- M</span>
+        </div>
+        <div style="text-align: center; font-size: 0.85rem; color: var(--accent-sub); margin-bottom: 10px;">
+            現在の賭け金制限：<span id="bet-range">下限 ---M / 上限 ---M</span>
+        </div>
+
+        <div class="wheel-wrapper" id="wheel">
+            <span id="wheel-number">?</span>
+        </div>
+
+        <label for="bet-input">賭け金 / BET AMOUNT</label>
+        <input type="number" id="bet-input" min="1" placeholder="金額を入力" required>
+
+        <label>賭け方式 / BET TYPE</label>
+        <div class="tab-row">
+            <button type="button" id="tab-color" class="tab-btn selected" onclick="setTab('color')">色で賭ける (2倍)</button>
+            <button type="button" id="tab-number" class="tab-btn" onclick="setTab('number')">数字で賭ける (35倍)</button>
+        </div>
+
+        <div id="color-picker">
+            <div class="choice-group">
+                <button type="button" id="btn-red" class="choice-btn red-btn" onclick="selectColor('red')">🔴 RED</button>
+                <button type="button" id="btn-black" class="choice-btn black-btn" onclick="selectColor('black')">⚫ BLACK</button>
+            </div>
+        </div>
+
+        <div id="number-picker">
+            <label for="number-input">数字を入力 (0〜36)</label>
+            <input type="number" id="number-input" min="0" max="36" placeholder="0〜36の数字">
+        </div>
+
+        <button type="button" id="play-btn" onclick="playRoulette()" style="margin-top: 10px;">ホイールを回す！ / SPIN</button>
+
+        <div id="result-text" class="result-display"></div>
+
+        <button onclick="location.href='./index.html'" style="margin-top: 10px; border-color: #888; color: #888; padding: 8px;">◀ ゲーム一覧に戻る</button>
+    </div>
+
+    <script>
+        const BACKEND_URL = "https://mcci-backend-service.onrender.com";
+        let currentMoney = 0;
+        let currentTab = 'color';
+        let selectedColor = null;
+
+        window.onload = async function() {
+            const username = localStorage.getItem('mcci_username');
+            if (!username) { window.location.href = "../login/index.html"; return; }
+            await updateStatus();
+        };
+
+        function setTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-color').classList.toggle('selected', tab === 'color');
+            document.getElementById('tab-number').classList.toggle('selected', tab === 'number');
+            document.getElementById('color-picker').style.display = tab === 'color' ? 'block' : 'none';
+            document.getElementById('number-picker').classList.toggle('active', tab === 'number');
+        }
+
+        function selectColor(color) {
+            selectedColor = color;
+            document.getElementById('btn-red').classList.toggle('selected', color === 'red');
+            document.getElementById('btn-black').classList.toggle('selected', color === 'black');
+        }
+
+        async function updateStatus() {
+            const username = localStorage.getItem('mcci_username');
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/user-info?username=${encodeURIComponent(username)}`);
+                const result = await response.json();
+                if (result.success) {
+                    currentMoney = result.money;
+                    document.getElementById('display-money').innerText = currentMoney + " M";
+
+                    const minBet = Math.max(1, Math.floor(currentMoney * 0.05));
+                    const maxBet = Math.max(1, Math.floor(currentMoney * 0.30));
+                    document.getElementById('bet-range').innerText = `下限 ${minBet}M 〜 上限 ${maxBet}M`;
+
+                    const betInput = document.getElementById('bet-input');
+                    betInput.min = minBet;
+                    betInput.max = maxBet;
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function colorClassOf(color) {
+            if (color === 'red') return 'num-red';
+            if (color === 'black') return 'num-black';
+            return 'num-green';
+        }
+
+        async function playRoulette() {
+            const username = localStorage.getItem('mcci_username');
+            const betInput = document.getElementById('bet-input');
+            const bet = parseInt(betInput.value);
+            const resultText = document.getElementById('result-text');
+            const playBtn = document.getElementById('play-btn');
+            const wheel = document.getElementById('wheel');
+            const wheelNumber = document.getElementById('wheel-number');
+
+            if (isNaN(bet)) { alert("賭け金を数値で入力してください。"); return; }
+
+            let betType = currentTab === 'color' ? selectedColor : 'number';
+            let betNumber = null;
+
+            if (currentTab === 'color' && !selectedColor) { alert("RED か BLACK を選択してください。"); return; }
+            if (currentTab === 'number') {
+                betNumber = parseInt(document.getElementById('number-input').value);
+                if (isNaN(betNumber) || betNumber < 0 || betNumber > 36) { alert("0〜36の数字を入力してください。"); return; }
+            }
+
+            const minBet = Math.max(1, Math.floor(currentMoney * 0.05));
+            const maxBet = Math.max(1, Math.floor(currentMoney * 0.30));
+            if (bet < minBet || bet > maxBet) {
+                alert(`賭け金は ${minBet}M から ${maxBet}M の間で指定してください。`);
+                return;
+            }
+
+            resultText.innerText = "ホイールが回転しています... 🎡";
+            resultText.style.color = "var(--text-main)";
+            playBtn.disabled = true;
+            wheelNumber.innerText = "";
+            wheelNumber.className = "";
+            wheel.classList.add('spinning');
+            document.getElementById('display-money').innerText = (currentMoney - bet) + " M";
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/games/roulette`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, bet, betType, betNumber })
+                });
+                const result = await response.json();
+
+                setTimeout(async () => {
+                    wheel.classList.remove('spinning');
+
+                    if (result.success) {
+                        wheelNumber.innerText = result.winningNumber;
+                        wheelNumber.className = colorClassOf(result.winningColor);
+
+                        resultText.innerText = result.message;
+                        resultText.style.color = result.win ? "var(--accent-main)" : "var(--alert-red)";
+
+                        await updateStatus();
+                        betInput.value = "";
+                    } else {
+                        alert(result.message);
+                        resultText.innerText = "";
+                        await updateStatus();
+                    }
+                    playBtn.disabled = false;
+                }, 2200);
+
+            } catch (error) {
+                alert("通信エラーが発生しました。");
+                resultText.innerText = "";
+                wheel.classList.remove('spinning');
+                playBtn.disabled = false;
+                await updateStatus();
+            }
+        }
+    </script>
+</body>
+</html>
