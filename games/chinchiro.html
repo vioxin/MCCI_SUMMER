@@ -77,6 +77,10 @@
             所持金: <span id="display-money" style="color: var(--accent-main); font-weight: bold; font-size: 1.4rem;">--- M</span>
         </div>
 
+        <div style="text-align: center; font-size: 0.85rem; color: var(--accent-sub); margin-bottom: 10px;">
+            現在の賭け金制限：<span id="bet-range">下限 ---M / 上限 ---M</span>
+        </div>
+
         <div class="vs-row">
             <div class="vs-side">
                 <h4>YOU / プレイヤー</h4>
@@ -97,12 +101,8 @@
             </div>
         </div>
 
-        <div style="text-align: center; font-size: 0.85rem; color: var(--accent-sub); margin-bottom: 10px;">
-            賭け金は所持金の5%〜30%の範囲で設定可能
-        </div>
-
         <label for="bet-input">賭け金 / BET AMOUNT</label>
-        <input type="number" id="bet-input" required>
+        <input type="number" id="bet-input" placeholder="金額を入力" required>
 
         <button type="button" id="play-btn" onclick="playChinchiro()" style="margin-top: 10px;">サイコロを振る！ / ROLL</button>
 
@@ -130,14 +130,15 @@
                     currentMoney = result.money;
                     document.getElementById('display-money').innerText = currentMoney + " M";
 
-                    // 【変更点】所持金の更新と同時に賭け金の上限(30%)と下限(5%)を計算
-                    const maxBet = Math.floor(currentMoney * 0.3);
+                    // 上限と下限の計算とUIへの反映
                     const minBet = Math.max(1, Math.floor(currentMoney * 0.05));
+                    const maxBet = Math.floor(currentMoney * 0.3);
                     
+                    document.getElementById('bet-range').innerText = `下限 ${minBet}M / 上限 ${maxBet}M`;
+
                     const betInput = document.getElementById('bet-input');
                     betInput.max = maxBet;
                     betInput.min = minBet;
-                    betInput.placeholder = `${minBet}M 〜 ${maxBet}M (所持金の5〜30%)`;
                 }
             } catch (e) { console.error(e); }
         }
@@ -170,16 +171,11 @@
             const resultText = document.getElementById('result-text');
             const playBtn = document.getElementById('play-btn');
 
-            // 【変更点】上限・下限の判定ロジックを追加
-            const maxBet = Math.floor(currentMoney * 0.3);
             const minBet = Math.max(1, Math.floor(currentMoney * 0.05));
+            const maxBet = Math.floor(currentMoney * 0.3);
 
-            if (isNaN(bet) || bet < minBet) { 
-                alert(`賭け金は下限の ${minBet}M 以上で入力してください。`); 
-                return; 
-            }
-            if (bet > maxBet) { 
-                alert(`賭け金の上限は所持金の30% ( ${maxBet}M ) です。`); 
+            if (isNaN(bet) || bet < minBet || bet > maxBet) { 
+                alert(`賭け金は ${minBet}M から ${maxBet}M の間で入力してください。`); 
                 return; 
             }
 
