@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>パチンコ - Mocchi Casino</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .board-wrapper {
+            position: relative;
+            width: 100%;
+            height: 160px;
+            margin: 20px 0;
+            background: repeating-radial-gradient(circle at 20% 20%, #222 0 2px, transparent 3px 30px);
+            border: 1px solid var(--accent-sub);
+            overflow: hidden;
+        }
+        .ball {
+            position: absolute;
+            top: 5px;
+            left: calc(50% - 6px);
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent-main);
+            box-shadow: 0 0 8px var(--accent-main);
+            transition: top 1.6s cubic-bezier(0.5, 0.05, 0.6, 1), left 1.6s cubic-bezier(0.5, 0.05, 0.6, 1);
+        }
+        .pocket-row {
+            display: flex;
+            gap: 4px;
+        }
+        .pocket {
+            flex: 1;
+            text-align: center;
+            padding: 8px 2px;
+            border: 1px solid var(--accent-sub);
+            background: rgba(0,0,0,0.3);
+            font-size: 0.65rem;
+        }
+        .pocket.lit {
+            background: var(--accent-main);
+            color: #000;
+            box-shadow: 0 0 10px var(--accent-main);
+            font-weight: bold;
+        }
+
+        .result-display {
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0;
+            min-height: 40px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container" style="max-width: 500px;">
+        <h2>🔴 パチンコ</h2>
+
+        <div style="text-align: center; margin-bottom: 10px;">
+            所持金: <span id="display-money" style="color: var(--accent-main); font-weight: bold; font-size: 1.4rem;">--- M</span>
+        </div>
+        <div style="text-align: center; font-size: 0.85rem; color: var(--accent-sub); margin-bottom: 10px;">
+            現在の玉代制限：<span id="bet-range">下限 ---M / 上限 ---M</span>
+        </div>
+
+        <div class="board-wrapper">
+            <div class="ball" id="ball"></div>
+        </div>
+        <div class="pocket-row" id="pocket-row">
+            <div class="pocket" data-key="jackpot">🎉<br>x10</div>
+            <div class="pocket" data-key="big">✨<br>x5</div>
+            <div class="pocket" data-key="win">🔵<br>x2</div>
+            <div class="pocket" data-key="small">🟡<br>x1.2</div>
+            <div class="pocket" data-key="miss">💀<br>x0</div>
+        </div>
+
+        <label for="bet-input" style="margin-top: 15px;">玉代 / BET AMOUNT</label>
+        <input type="number" id="bet-input" min="1" placeholder="金額を入力" required>
+
+        <button type="button" id="play-btn" onclick="playPachinko()" style="margin-top: 10px;">玉を打つ！ / SHOOT</button>
+
+        <div id="result-text" class="result-display"></div>
+
+        <button onclick="location.href='./index.html'" style="margin-top: 10px; border-color: #888; color: #888; padding: 8px;">◀ ゲーム一覧に戻る</button>
+    </div>
+
+    <script>
+        const BACKEND_URL = "https://mcci-backend-service.onrender.com";
+        // ポケットの並び順とX位置(%)。backendのPACHINKO_POCKETSと対応。
+        const POCKET_ORDER = ['jackpot', 'big', 'win', 'small', 'miss'];
+        let currentMoney = 0;
+
+        window.onload = async function() {
+            const username = localStorage.getItem('mcci_username');
+            if (!username) { window.location.href = "../login/index.html"; return; }
+            await updateStatus();
+        };
+
+        async function updateStatus() {
+            const username = localStorage.getItem('mcci_username');
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/user-info?username=${encodeURIComponent(username)}`);
+                const result = await response.json();
+                if (result.success) {
+                    currentMoney = result.money;
+                    document.getElementById('display-money').innerText = currentMoney + " M";
+
+                    const minBet = Math.max(1, Math.floor(currentMoney * 0.05));
+                    const maxBet = Math.max(1, Math.floor(currentMoney * 0.30));
+                    document.getElementById('bet-range').innerText = `下限 ${minBet}M 〜 上限 ${maxBet}M`;
+
+                    const betInput = document.getElementById('bet-input');
+                    betInput.min = minBet;
+                    betInput.max = maxBet;
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function pocketLeftPercent(key) {
+            const idx = POCKET_ORDER.indexOf(key);
+            const slotWidth = 100 / POCKET_ORDER.length;
+            return (idx * slotWidth) + (slotWidth / 2) - 1.5; // ボールの中心をポケット中央へ
+        }
+
+        async function playPachinko() {
+            const username = localStorage.getItem('mcci_username');
+            const betInput = document.getElementById('bet-input');
+            const bet = parseInt(betInput.value);
+            const resultText = document.getElementById('result-text');
+            const playBtn = document.getElementById('play-btn');
+            const ball = document.getElementById('ball');
+
+            if (isNaN(bet)) { alert("玉代を数値で入力してください。"); return; }
+
+            const minBet = Math.max(1, Math.floor(currentMoney * 0.05));
+            const maxBet = Math.max(1, Math.floor(currentMoney * 0.30));
+            if (bet < minBet || bet > maxBet) {
+                alert(`玉代は ${minBet}M から ${maxBet}M の間で指定してください。`);
+                return;
+            }
+
+            resultText.innerText = "玉が盤面を落ちています... 🔴";
+            resultText.style.color = "var(--text-main)";
+            playBtn.disabled = true;
+            document.querySelectorAll('.pocket').forEach(p => p.classList.remove('lit'));
+
+            // ボールをスタート位置にリセット
+            ball.style.transition = "none";
+            ball.style.top = "5px";
+            ball.style.left = "calc(50% - 6px)";
+            void ball.offsetWidth; // reflow
+
+            document.getElementById('display-money').innerText = (currentMoney - bet) + " M";
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/games/pachinko`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, bet })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    // ボールを結果のポケットへ落とすアニメーション
+                    ball.style.transition = "top 1.6s cubic-bezier(0.5, 0.05, 0.6, 1), left 1.6s cubic-bezier(0.5, 0.05, 0.6, 1)";
+                    ball.style.top = "130px";
+                    ball.style.left = `calc(${pocketLeftPercent(result.pocket)}% )`;
+                } else {
+                    ball.style.top = "5px";
+                }
+
+                setTimeout(async () => {
+                    if (result.success) {
+                        const pocketEl = document.querySelector(`.pocket[data-key="${result.pocket}"]`);
+                        if (pocketEl) pocketEl.classList.add('lit');
+
+                        resultText.innerText = result.message;
+                        resultText.style.color = result.win ? "var(--accent-main)" : "var(--alert-red)";
+
+                        await updateStatus();
+                        betInput.value = "";
+                    } else {
+                        alert(result.message);
+                        resultText.innerText = "";
+                        await updateStatus();
+                    }
+                    playBtn.disabled = false;
+                }, 1700);
+
+            } catch (error) {
+                alert("通信エラーが発生しました。");
+                resultText.innerText = "";
+                ball.style.top = "5px";
+                playBtn.disabled = false;
+                await updateStatus();
+            }
+        }
+    </script>
+</body>
+</html>
