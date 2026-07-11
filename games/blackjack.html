@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ブラックジャック - Mocchi Casino</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .table-area { margin: 15px 0; }
+        .hand-block { margin-bottom: 15px; }
+        .hand-title {
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--accent-sub);
+            font-size: 0.9rem;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .card-row { display: flex; gap: 6px; flex-wrap: wrap; min-height: 70px; }
+        .card {
+            width: 46px; height: 64px;
+            background: #fff;
+            color: #111;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1rem;
+            box-shadow: 0 0 6px rgba(255,255,255,0.3);
+        }
+        .card.red-suit { color: #c0392b; }
+        .card.hidden {
+            background: repeating-linear-gradient(45deg, var(--accent-sub), var(--accent-sub) 4px, #111 4px, #111 8px);
+        }
+
+        .action-row { display: flex; gap: 10px; margin-top: 10px; }
+        .action-row button { flex: 1; }
+
+        .result-display {
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0;
+            min-height: 40px;
+            line-height: 1.4;
+        }
+        #bet-phase, #play-phase { display: block; }
+        #play-phase.hidden, #bet-phase.hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="form-container" style="max-width: 520px;">
+        <h2>♠️ BLACKJACK</h2>
+
+        <div style="text-align: center; margin-bottom: 10px;">
+            所持金: <span id="display-money" style="color: var(--accent-main); font-weight: bold; font-size: 1.4rem;">--- M</span>
+        </div>
+
+        <div id="bet-phase">
+            <label for="bet-input">賭け金 / BET AMOUNT</label>
+            <input type="number" id="bet-input" min="1" placeholder="金額を入力" required>
+            <button type="button" id="deal-btn" onclick="startGame()" style="margin-top: 10px;">配る / DEAL</button>
+        </div>
+
+        <div id="play-phase" class="hidden">
+            <div class="table-area">
+                <div class="hand-block">
+                    <div class="hand-title"><span>DEALER</span><span id="dealer-total"></span></div>
+                    <div class="card-row" id="dealer-cards"></div>
+                </div>
+                <div class="hand-block">
+                    <div class="hand-title"><span>YOU</span><span id="player-total"></span></div>
+                    <div class="card-row" id="player-cards"></div>
+                </div>
+            </div>
+
+            <div class="action-row">
+                <button type="button" id="hit-btn" onclick="hit()">HIT / もう1枚</button>
+                <button type="button" id="stand-btn" onclick="stand()">STAND / 勝負</button>
+            </div>
+        </div>
+
+        <div id="result-text" class="result-display"></div>
+
+        <button onclick="location.href='./index.html'" style="margin-top: 10px; border-color: #888; color: #888; padding: 8px;">◀ ゲーム一覧に戻る</button>
+    </div>
+
+    <script>
+        const BACKEND_URL = "https://mcci-backend-service.onrender.com";
+        let currentMoney = 0;
+        let currentBet = 0;
+
+        window.onload = async function() {
+            const username = localStorage.getItem('mcci_username');
+            if (!username) { window.location.href = "../login/index.html"; return; }
+            await updateStatus();
+        };
+
+        async function updateStatus() {
+            const username = localStorage.getItem('mcci_username');
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/user-info?username=${encodeURIComponent(username)}`);
+                const result = await response.json();
+                if (result.success) {
+                    currentMoney = result.money;
+                    document.getElementById('display-money').innerText = currentMoney + " M";
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function cardHTML(card, hiddenFlag) {
+            if (hiddenFlag) return `<div class="card hidden"></div>`;
+            const isRed = (card.suit === '♥' || card.suit === '♦');
+            return `<div class="card ${isRed ? 'red-suit' : ''}">${card.rank}${card.suit}</div>`;
+        }
+
+        function renderCards(elId, hand) {
+            document.getElementById(elId).innerHTML = hand.map(c => cardHTML(c, false)).join('');
+        }
+
+        function togglePhase(playing) {
+            document.getElementById('bet-phase').classList.toggle('hidden', playing);
+            document.getElementById('play-phase').classList.toggle('hidden', !playing);
+        }
+
+        async function startGame() {
+            const username = localStorage.getItem('mcci_username');
+            const betInput = document.getElementById('bet-input');
+            const bet = parseInt(betInput.value);
+            const resultText = document.getElementById('result-text');
+            const dealBtn = document.getElementById('deal-btn');
+
+            if (isNaN(bet) || bet < 1) { alert("賭け金を数値で入力してください。"); return; }
+            if (bet > currentMoney) { alert(`賭け金は所持金( ${currentMoney}M )以下にしてください。`); return; }
+
+            dealBtn.disabled = true;
+            resultText.innerText = "";
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/games/blackjack/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, bet })
+                });
+                const result = await response.json();
+                dealBtn.disabled = false;
+
+                if (!result.success) { alert(result.message); await updateStatus(); return; }
+
+                currentBet = bet;
+                currentMoney = result.newMoney;
+                document.getElementById('display-money').innerText = currentMoney + " M";
+
+                if (result.finished) {
+                    // 初手ブラックジャック等、その場で決着
+                    renderCards('player-cards', result.playerHand);
+                    renderCards('dealer-cards', result.dealerHand);
+                    document.getElementById('player-total').innerText = result.playerTotal;
+                    document.getElementById('dealer-total').innerText = result.dealerTotal;
+                    togglePhase(true);
+                    document.getElementById('hit-btn').style.display = 'none';
+                    document.getElementById('stand-btn').style.display = 'none';
+                    resultText.innerText = result.message;
+                    resultText.style.color = result.message.includes('勝利') || result.message.includes('ブラックジャック！') ? "var(--accent-main)" : "var(--text-main)";
+                    setTimeout(resetToBetPhase, 3000);
+                    return;
+                }
+
+                togglePhase(true);
+                document.getElementById('hit-btn').style.display = 'block';
+                document.getElementById('stand-btn').style.display = 'block';
+                renderCards('player-cards', result.playerHand);
+                document.getElementById('dealer-cards').innerHTML = cardHTML(result.dealerUpCard, false) + cardHTML(null, true);
+                document.getElementById('player-total').innerText = result.playerTotal;
+                document.getElementById('dealer-total').innerText = '?';
+
+            } catch (e) {
+                alert("通信エラーが発生しました。");
+                dealBtn.disabled = false;
+            }
+        }
+
+        async function hit() {
+            const username = localStorage.getItem('mcci_username');
+            const resultText = document.getElementById('result-text');
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/games/blackjack/hit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+                const result = await response.json();
+                if (!result.success) { alert(result.message); return; }
+
+                renderCards('player-cards', result.playerHand);
+                document.getElementById('player-total').innerText = result.playerTotal;
+
+                if (result.finished) {
+                    renderCards('dealer-cards', result.dealerHand);
+                    document.getElementById('dealer-total').innerText = result.dealerTotal;
+                    document.getElementById('hit-btn').style.display = 'none';
+                    document.getElementById('stand-btn').style.display = 'none';
+                    resultText.innerText = result.message;
+                    resultText.style.color = "var(--alert-red)";
+                    await updateStatus();
+                    setTimeout(resetToBetPhase, 3000);
+                }
+            } catch (e) { alert("通信エラーが発生しました。"); }
+        }
+
+        async function stand() {
+            const username = localStorage.getItem('mcci_username');
+            const resultText = document.getElementById('result-text');
+            document.getElementById('hit-btn').disabled = true;
+            document.getElementById('stand-btn').disabled = true;
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/games/blackjack/stand`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+                const result = await response.json();
+                document.getElementById('hit-btn').disabled = false;
+                document.getElementById('stand-btn').disabled = false;
+
+                if (!result.success) { alert(result.message); return; }
+
+                renderCards('dealer-cards', result.dealerHand);
+                document.getElementById('dealer-total').innerText = result.dealerTotal;
+                document.getElementById('player-total').innerText = result.playerTotal;
+                document.getElementById('hit-btn').style.display = 'none';
+                document.getElementById('stand-btn').style.display = 'none';
+
+                resultText.innerText = result.message;
+                resultText.style.color = result.result === 'win' ? "var(--accent-main)" : (result.result === 'draw' ? "var(--text-main)" : "var(--alert-red)");
+
+                await updateStatus();
+                setTimeout(resetToBetPhase, 3000);
+
+            } catch (e) {
+                alert("通信エラーが発生しました。");
+                document.getElementById('hit-btn').disabled = false;
+                document.getElementById('stand-btn').disabled = false;
+            }
+        }
+
+        function resetToBetPhase() {
+            togglePhase(false);
+            document.getElementById('bet-input').value = "";
+            document.getElementById('result-text').innerText = "";
+        }
+    </script>
+</body>
+</html>
